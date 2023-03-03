@@ -13,7 +13,8 @@ trap timeout_handler SIGALRM
     sleep 60; kill -ALRM $$
 ) &
 
-while [ ! -e /tmp/success ]
+while [ -z "$(ip -o addr show dev eth0 scope global to 192.168.200.1)" ]
 do
     sleep 1
 done
+
