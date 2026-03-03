@@ -1,0 +1,99 @@
+name: Check Major Version Bump
+
+on:
+  workflow_run:
+    workflows: ["Build and Tag"]
+    types:
+      - completed
+    branches:
+      - master
+
+jobs:
+  check-major-bump:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Get master branch version
+        id: main-version
+        run: |
+          docker pull ghcr.io/${{ github.repository }}:main
+          MAIN_VERSION=$(docker run --rm --entrypoint sh ghcr.io/${{ github.repository }}:main -c 'apk info keepalived 2>/dev/null | grep "^keepalived-" | head -1 | cut -d- -f2 | cut -dr -f1')
+          MAIN_MAJOR=$(echo "$MAIN_VERSION" | cut -d. -f1)
+          echo "version=$MAIN_VERSION" >> $GITHUB_OUTPUT
+          echo "major=$MAIN_MAJOR" >> $GITHUB_OUTPUT
+          echo "Master version: $MAIN_VERSION (major: $MAIN_MAJOR)"
+
+      - name: Get stable branch version
+        id: stable-version
+        run: |
+          if docker pull ghcr.io/${{ github.repository }}:stable 2>/dev/null; then
+            STABLE_VERSION=$(docker run --rm --entrypoint sh ghcr.io/${{ github.repository }}:stable -c 'apk info keepalived 2>/dev/null | grep "^keepalived-" | head -1 | cut -d- -f2 | cut -dr -f1')
+            STABLE_MAJOR=$(echo "$STABLE_VERSION" | cut -d. -f1)
+            echo "version=$STABLE_VERSION" >> $GITHUB_OUTPUT
+            echo "major=$STABLE_MAJOR" >> $GITHUB_OUTPUT
+            echo "Stable version: $STABLE_VERSION (major: $STABLE_MAJOR)"
+          else
+            echo "version=" >> $GITHUB_OUTPUT
+            echo "major=" >> $GITHUB_OUTPUT
+            echo "No stable image found"
+          fi
+
+      - name: Check if major version differs
+        id: check-diff
+        run: |
+          MAIN_MAJOR="${{ steps.main-version.outputs.major }}"
+          STABLE_MAJOR="${{ steps.stable-version.outputs.major }}"
+
+          if [ -z "$STABLE_MAJOR" ]; then
+            echo "needs_pr=true" >> $GITHUB_OUTPUT
+            echo "reason=No stable branch exists yet" >> $GITHUB_OUTPUT
+          elif [ "$MAIN_MAJOR" != "$STABLE_MAJOR" ]; then
+            echo "needs_pr=true" >> $GITHUB_OUTPUT
+            echo "reason=Major version changed from $STABLE_MAJOR to $MAIN_MAJOR" >> $GITHUB_OUTPUT
+          else
+            echo "needs_pr=false" >> $GITHUB_OUTPUT
+            echo "reason=Major versions match" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.check-diff.outputs.needs_pr == 'true'
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update stable to keepalived ${{ steps.main-version.outputs.version }}"
+          branch: update-stable-v${{ steps.main-version.outputs.major }}
+          base: stable
+          title: "Promote keepalived ${{ steps.main-version.outputs.version }} to stable"
+          labels: |
+            stable-promotion
+            major-version-bump
+          body: |
+            ## Stable Branch Promotion
+
+            This PR promotes the master branch to stable for a major version update.
+
+            **Current stable version:** ${{ steps.stable-version.outputs.version || 'None' }} (major: ${{ steps.stable-version.outputs.major || 'N/A' }})
+            **New master version:** ${{ steps.main-version.outputs.version }} (major: ${{ steps.main-version.outputs.major }})
+
+            ### Testing Checklist
+
+            - [ ] All automated tests pass
+            - [ ] Structure tests pass
+            - [ ] Standalone tests pass
+            - [ ] Integration tests pass
+            - [ ] Manual testing completed (if required)
+            - [ ] Documentation reviewed and updated
+
+            ### Changes
+
+            - Major version bump from keepalived ${{ steps.stable-version.outputs.major || 'initial' }} to ${{ steps.main-version.outputs.major }}
+
+            ---
+            🤖 Generated automatically by check-major-version-bump workflow
