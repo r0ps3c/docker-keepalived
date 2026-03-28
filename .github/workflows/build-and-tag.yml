@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-scan-push:
-    uses: r0ps3c/gh-shared-workflows/.github/workflows/docker-build-scan-push.yml@main
+    uses: r0ps3c/gh-shared-workflows/.github/workflows/docker-build-scan-push.yml@3bc8a86e2aa0762b4d6e239198dc0c639d2fe856 # main
     with:
       image-ref: keepalived:main
       primary-branch: master
