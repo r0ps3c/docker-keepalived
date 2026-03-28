@@ -13,10 +13,10 @@ on:
 
 jobs:
   build-scan-push:
-    uses: r0ps3c/gh-shared-workflows/.github/workflows/docker-build-scan-push.yml@3bc8a86e2aa0762b4d6e239198dc0c639d2fe856 # main
+    uses: r0ps3c/gh-shared-workflows/.github/workflows/docker-build-scan-push.yml@888bf82066a53e73b6ce21f5be304b74e4aeb104 # main
     with:
       image-ref: keepalived:main
-      primary-branch: master
+      primary_branch: master
       version-extract-command: "apk info keepalived 2>/dev/null | grep '^keepalived-' | head -1 | cut -d- -f2 | cut -dr -f1"
       test-command: make test-structure && make test-standalone && make test-integration
     secrets: inherit
