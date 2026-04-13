@@ -17,7 +17,7 @@
       "automergeStrategy": "squash",
       "ignoreTests": false,
       "pinDigests": true,
-      "matchUpdateTypes": ["minor", "patch", "digest"]
+      "matchUpdateTypes": ["pin", "minor", "patch", "digest"]
     },
     {
       "description": "Major Alpine updates require manual review",
