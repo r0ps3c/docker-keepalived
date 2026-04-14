@@ -64,36 +64,49 @@ jobs:
 
       - name: Create Pull Request
         if: steps.check-diff.outputs.needs_pr == 'true'
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Update stable to keepalived ${{ steps.main-version.outputs.version }}"
-          branch: update-stable-v${{ steps.main-version.outputs.major }}
-          base: stable
-          title: "Promote keepalived ${{ steps.main-version.outputs.version }} to stable"
-          labels: |
-            stable-promotion
-            major-version-bump
-          body: |
-            ## Stable Branch Promotion
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="update-stable-v${{ steps.main-version.outputs.major }}"
+          git push origin HEAD:"refs/heads/$BRANCH" --force
 
-            This PR promotes the master branch to stable for a major version update.
+          gh label create "stable-promotion" --color "0075ca" --description "Promotes to stable branch" 2>/dev/null || true
+          gh label create "major-version-bump" --color "e4e669" --description "Indicates a major version bump" 2>/dev/null || true
 
-            **Current stable version:** ${{ steps.stable-version.outputs.version || 'None' }} (major: ${{ steps.stable-version.outputs.major || 'N/A' }})
-            **New master version:** ${{ steps.main-version.outputs.version }} (major: ${{ steps.main-version.outputs.major }})
+          EXISTING=$(gh pr list --head "$BRANCH" --base stable --json number --jq 'length' 2>/dev/null || echo "0")
+          if [ "$EXISTING" = "0" ]; then
+            cat > /tmp/pr-body.md << EOF
+          ## Stable Branch Promotion
 
-            ### Testing Checklist
+          This PR promotes the master branch to stable for a major version update.
 
-            - [ ] All automated tests pass
-            - [ ] Structure tests pass
-            - [ ] Standalone tests pass
-            - [ ] Integration tests pass
-            - [ ] Manual testing completed (if required)
-            - [ ] Documentation reviewed and updated
+          **Current stable version:** ${{ steps.stable-version.outputs.version || 'None' }} (major: ${{ steps.stable-version.outputs.major || 'N/A' }})
+          **New master version:** ${{ steps.main-version.outputs.version }} (major: ${{ steps.main-version.outputs.major }})
 
-            ### Changes
+          ### Testing Checklist
 
-            - Major version bump from keepalived ${{ steps.stable-version.outputs.major || 'initial' }} to ${{ steps.main-version.outputs.major }}
+          - [ ] All automated tests pass
+          - [ ] Structure tests pass
+          - [ ] Standalone tests pass
+          - [ ] Integration tests pass
+          - [ ] Manual testing completed (if required)
+          - [ ] Documentation reviewed and updated
 
-            ---
-            🤖 Generated automatically by check-major-version-bump workflow
+          ### Changes
+
+          - Major version bump from keepalived ${{ steps.stable-version.outputs.major || 'initial' }} to ${{ steps.main-version.outputs.major }}
+
+          ---
+          Generated automatically by check-major-version-bump workflow
+          EOF
+
+            gh pr create \
+              --base stable \
+              --head "$BRANCH" \
+              --title "Promote keepalived ${{ steps.main-version.outputs.version }} to stable" \
+              --label "stable-promotion" \
+              --label "major-version-bump" \
+              --body-file /tmp/pr-body.md
+          else
+            echo "PR already exists for branch $BRANCH, skipping creation"
+          fi
