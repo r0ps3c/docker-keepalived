@@ -1,4 +1,4 @@
-FROM alpine:3.23
+FROM alpine:3.24
 
 RUN \
 	apk --no-cache add keepalived=2.3.4-r3 bash && \
