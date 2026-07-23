@@ -15,7 +15,7 @@ on:
 
 jobs:
   build-scan-push:
-    uses: r0ps3c/gh-shared-workflows/.github/workflows/docker-build-scan-push.yml@d918bd31d3371da06f76c46d59a0556034780019 # main
+    uses: r0ps3c/gh-shared-workflows/.github/workflows/docker-build-scan-push.yml@3c584aeb1a5d0b1a476db269b1d04cf3fe7fe9ab # main
     permissions:
       contents: read
       packages: write
